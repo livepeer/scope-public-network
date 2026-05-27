@@ -1,0 +1,4 @@
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy go-livepeer:8935
+}

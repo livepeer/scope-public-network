@@ -1,0 +1,146 @@
+name: scope-livepeer-onchain
+
+services:
+  scope-live-runner:
+    image: ${SCOPE_IMAGE:-ghcr.io/daydreamlive/scope:ja-runner-cloud}
+    restart: unless-stopped
+    gpus: all
+    depends_on:
+      - go-livepeer
+    command:
+      - uv
+      - run
+      - livepeer-scope
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8989"
+      - --orchestrator
+      - http://go-livepeer:8935
+      - --orch-secret
+      - ${ORCH_SECRET:?Set ORCH_SECRET in .env}
+      - --runner-url
+      - http://scope-live-runner:8989
+      - --price-per-unit
+      - ${PRICE_PER_UNIT:-5}
+      - --pixels-per-unit
+      - ${PIXELS_PER_UNIT:-995328000000}
+    environment:
+      LIVEPEER_ORCH_URL: http://go-livepeer:8935
+      LIVEPEER_ORCH_SECRET: ${ORCH_SECRET:?Set ORCH_SECRET in .env}
+      LIVEPEER_RUNNER_HOST: 0.0.0.0
+      LIVEPEER_RUNNER_PORT: "8989"
+      LIVEPEER_RUNNER_URL: http://scope-live-runner:8989
+      LIVEPEER_RUNNER_PRICE_PER_UNIT: ${PRICE_PER_UNIT:-5}
+      LIVEPEER_RUNNER_PIXELS_PER_UNIT: ${PIXELS_PER_UNIT:-995328000000}
+      LIVEPEER_RUNNER_PRICE_UNIT: pixels
+      DAYDREAM_SCOPE_MODELS_DIR: /workspace/models
+      DAYDREAM_SCOPE_LOGS_DIR: /workspace/logs
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      PYTHONUNBUFFERED: "1"
+    expose:
+      - "8989"
+    volumes:
+      - scope-models:/workspace/models
+      - scope-logs:/workspace/logs
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+  go-livepeer:
+    image: ${GO_LIVEPEER_IMAGE:-ghcr.io/livepeer/go-livepeer:ja-live-runner}
+    restart: unless-stopped
+    environment:
+      PUBLIC_SERVICE_ADDR: ${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR in .env}
+      ARBITRUM_RPC_URL: ${ARBITRUM_RPC_URL:?Set ARBITRUM_RPC_URL in .env}
+      ETH_ACCT_ADDR: ${ETH_ACCT_ADDR:?Set ETH_ACCT_ADDR in .env}
+      ETH_KEYSTORE_PATH: ${ETH_KEYSTORE_PATH:-/root/.lpData/arbitrum-one-mainnet/keystore}
+      ETH_PASSWORD_FILE: ${ETH_PASSWORD_FILE:-/root/.lpData/.eth_secret}
+      ORCH_SECRET: ${ORCH_SECRET:?Set ORCH_SECRET in .env}
+      TICKET_EV: ${TICKET_EV:-800000000000}
+      PRICE_PER_UNIT: ${PRICE_PER_UNIT:-5}
+      PIXELS_PER_UNIT: ${PIXELS_PER_UNIT:-995328000000}
+      LIVEPEER_BIN: ${LIVEPEER_BIN:-livepeer}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        : "$${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR}"
+        : "$${ARBITRUM_RPC_URL:?Set ARBITRUM_RPC_URL}"
+        : "$${ETH_ACCT_ADDR:?Set ETH_ACCT_ADDR}"
+        : "$${ORCH_SECRET:?Set ORCH_SECRET}"
+
+        if command -v envsubst >/dev/null 2>&1; then
+          envsubst < /etc/livepeer/go-livepeer.conf.template > /tmp/go-livepeer.conf
+        else
+          cat > /tmp/go-livepeer.conf <<EOF
+        orchestrator true
+        useLiveRunners true
+        httpAddr 0.0.0.0:8935
+        serviceAddr $${PUBLIC_SERVICE_ADDR}
+        network arbitrum-one-mainnet
+        ethUrl $${ARBITRUM_RPC_URL}
+        ethAcctAddr $${ETH_ACCT_ADDR}
+        ethKeystorePath $${ETH_KEYSTORE_PATH}
+        ethPassword $${ETH_PASSWORD_FILE}
+        orchSecret $${ORCH_SECRET}
+
+        # Corresponds to $0.50/hour.
+        ticketEV $${TICKET_EV}
+        pricePerUnit $${PRICE_PER_UNIT}
+        pixelsPerUnit $${PIXELS_PER_UNIT}
+
+        v 99
+        EOF
+        fi
+
+        if grep -q '\${' /tmp/go-livepeer.conf; then
+          echo "go-livepeer config contains unresolved placeholders" >&2
+          exit 1
+        fi
+
+        exec "$${LIVEPEER_BIN:-livepeer}" -config /tmp/go-livepeer.conf
+    expose:
+      - "8935"
+    volumes:
+      - ./go-livepeer.conf.template:/etc/livepeer/go-livepeer.conf.template:ro
+      - livepeer-data:/root/.lpData
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2}
+    restart: unless-stopped
+    depends_on:
+      - go-livepeer
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+  watchtower:
+    image: ${WATCHTOWER_IMAGE:-nickfedor/watchtower:latest}
+    restart: unless-stopped
+    command:
+      - --label-enable
+      - --interval
+      - ${WATCHTOWER_POLL_INTERVAL:-3600}
+      - --cleanup
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+
+volumes:
+  caddy-config:
+  caddy-data:
+  livepeer-data:
+  scope-logs:
+  scope-models:

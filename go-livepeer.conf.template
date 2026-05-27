@@ -1,0 +1,17 @@
+orchestrator true
+useLiveRunners true
+httpAddr 0.0.0.0:8935
+serviceAddr ${PUBLIC_SERVICE_ADDR}
+network arbitrum-one-mainnet
+ethUrl ${ARBITRUM_RPC_URL}
+ethAcctAddr ${ETH_ACCT_ADDR}
+ethKeystorePath ${ETH_KEYSTORE_PATH}
+ethPassword ${ETH_PASSWORD_FILE}
+orchSecret ${ORCH_SECRET}
+
+# Corresponds to $0.50/hour.
+ticketEV ${TICKET_EV}
+pricePerUnit ${PRICE_PER_UNIT}
+pixelsPerUnit ${PIXELS_PER_UNIT}
+
+v 99
