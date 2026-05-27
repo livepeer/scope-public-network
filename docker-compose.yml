@@ -61,38 +61,16 @@ services:
       PRICE_PER_UNIT: ${PRICE_PER_UNIT:-5}
       PIXELS_PER_UNIT: ${PIXELS_PER_UNIT:-995328000000}
       LIVEPEER_BIN: ${LIVEPEER_BIN:-livepeer}
-    command:
+    entrypoint:
       - /bin/sh
       - -ec
-      - |
-        : "$${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR}"
-        : "$${ARBITRUM_RPC_URL:?Set ARBITRUM_RPC_URL}"
-        : "$${ETH_ACCT_ADDR:?Set ETH_ACCT_ADDR}"
-        : "$${ORCH_SECRET:?Set ORCH_SECRET}"
-
-        if command -v envsubst >/dev/null 2>&1; then
-          envsubst < /etc/livepeer/go-livepeer.conf.template > /tmp/go-livepeer.conf
-        else
-          cat > /tmp/go-livepeer.conf <<EOF
-        orchestrator true
-        useLiveRunners true
-        httpAddr 0.0.0.0:8935
-        serviceAddr $${PUBLIC_SERVICE_ADDR}
-        network arbitrum-one-mainnet
-        ethUrl $${ARBITRUM_RPC_URL}
-        ethAcctAddr $${ETH_ACCT_ADDR}
-        ethKeystorePath $${ETH_KEYSTORE_PATH}
-        ethPassword $${ETH_PASSWORD_FILE}
-        orchSecret $${ORCH_SECRET}
-
-        # Corresponds to $0.50/hour.
-        ticketEV $${TICKET_EV}
-        pricePerUnit $${PRICE_PER_UNIT}
-        pixelsPerUnit $${PIXELS_PER_UNIT}
-
-        v 99
-        EOF
+    command: |
+        if ! command -v envsubst >/dev/null 2>&1; then
+          echo "envsubst is required to render go-livepeer.conf.template" >&2
+          exit 1
         fi
+
+        envsubst < /etc/livepeer/go-livepeer.conf.template > /tmp/go-livepeer.conf
 
         if grep -q '\${' /tmp/go-livepeer.conf; then
           echo "go-livepeer config contains unresolved placeholders" >&2

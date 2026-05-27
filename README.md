@@ -32,8 +32,10 @@ sequenceDiagram
 
 - `docker-compose.yml` runs Scope, go-livepeer, Caddy, and Watchtower.
 - `env.example` lists required runtime configuration.
-- `go-livepeer.conf.template` is rendered into `/tmp/go-livepeer.conf` inside the
-  go-livepeer container at startup.
+- `go-livepeer.conf.template` is the single source of truth for the
+  orchestrator config. It is rendered into `/tmp/go-livepeer.conf` inside the
+  go-livepeer container at startup, and then `livepeer -config` runs that
+  rendered file.
 - `Caddyfile` terminates TLS for `DOMAIN` and proxies to go-livepeer.
 
 ## Setup
@@ -54,6 +56,22 @@ sequenceDiagram
    /root/.lpData/arbitrum-one-mainnet/keystore
    /root/.lpData/.eth_secret
    ```
+
+## Secrets And Persistent Data
+
+- The Compose file does not create the Livepeer keystore or `.eth_secret` for
+  you. Those must already exist before `go-livepeer` starts.
+- By default, `go-livepeer` reads both from the persistent `livepeer-data`
+  volume mounted at `/root/.lpData`.
+- If you already manage these files on the host, you can replace the named
+  volume with bind mounts and point `ETH_KEYSTORE_PATH` / `ETH_PASSWORD_FILE`
+  at those mounted paths instead.
+- If you keep the named volume, populate it before first startup, for example
+  by copying the keystore directory and `.eth_secret` into the volume with a
+  one-off container or temporary mount.
+- Keep the password file readable by the `go-livepeer` process inside the
+  container and avoid storing either secret in the repo or other ephemeral
+  container filesystems.
 
 4. Validate the Compose file:
 
