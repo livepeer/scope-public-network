@@ -2,7 +2,7 @@ name: scope-livepeer-onchain
 
 services:
   scope-live-runner:
-    image: ${SCOPE_IMAGE:-ghcr.io/daydreamlive/scope:ja-runner-cloud}
+    image: ${SCOPE_IMAGE:-daydreamlive/scope:ja-runner-cloud}
     restart: unless-stopped
     gpus: all
     depends_on:
@@ -48,7 +48,7 @@ services:
       com.centurylinklabs.watchtower.enable: "true"
 
   go-livepeer:
-    image: ${GO_LIVEPEER_IMAGE:-ghcr.io/livepeer/go-livepeer:ja-live-runner}
+    image: ${GO_LIVEPEER_IMAGE:-livepeer/go-livepeer:ja-live-runner}
     restart: unless-stopped
     environment:
       PUBLIC_SERVICE_ADDR: ${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR in .env}
