@@ -1,6 +1,6 @@
 orchestrator true
 useLiveRunners true
-httpAddr 0.0.0.0:8935
+httpAddr http://0.0.0.0:8935
 serviceAddr ${PUBLIC_SERVICE_ADDR}
 liveRunnerAddr ${LIVE_RUNNER_ADDR}
 network arbitrum-one-mainnet

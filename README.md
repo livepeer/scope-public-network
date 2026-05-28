@@ -129,6 +129,42 @@ internally at `http://scope-live-runner:8989`. Scope stores persistent shared
 runner data at `/workspace/shared` and session-specific data under
 `/tmp/.daydream-scope/assets`.
 
+## Multiple Scope Runners And GPU Selection
+
+Scope currently uses a single GPU per live runner instance. On multi-GPU hosts,
+run one Scope runner instance per GPU instead of expecting one instance to use
+multiple GPUs concurrently.
+
+Each Scope runner instance needs its own service name and runner URL. Select the
+GPU for each runner with the `CUDA_VISIBLE_DEVICES` environment variable, and
+set it on the Scope runner itself.
+
+For example, an abbreviated two-runner Docker Compose setup would vary these
+runner-specific settings:
+
+```yaml
+services:
+  scope-live-runner-0:
+    command:
+      # ...same runner command as scope-live-runner...
+      - --runner-url
+      - http://scope-live-runner-0:8989
+    environment:
+      CUDA_VISIBLE_DEVICES: "0"
+
+  scope-live-runner-1:
+    command:
+      # ...same runner command as scope-live-runner...
+      - --runner-url
+      - http://scope-live-runner-1:8989
+    environment:
+      CUDA_VISIBLE_DEVICES: "1"
+```
+
+If you run Scope outside Docker Compose or publish runner ports on the host,
+make sure each runner binds a distinct listener, such as `8989` and `8990`, and
+set each runner URL to the address where that specific runner can be reached.
+
 ## Updates
 
 Watchtower uses `nickfedor/watchtower` and runs with label filtering enabled.
