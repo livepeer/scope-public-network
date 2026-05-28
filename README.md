@@ -63,6 +63,12 @@ sequenceDiagram
   you. Those must already exist before `go-livepeer` starts.
 - By default, `go-livepeer` reads both from the persistent `livepeer-data`
   volume mounted at `/root/.lpData`.
+- Scope keeps shared runner data in the persistent `scope-shared-data` volume
+  mounted at `/workspace/shared`. This is where model weights and shared LoRAs
+  live across container restarts and replacements.
+- Scope keeps per-session assets, logs, and plugins under
+  `/tmp/.daydream-scope/assets` inside the container. That session data is
+  intentionally ephemeral.
 - If you already manage these files on the host, you can replace the named
   volume with bind mounts and point `ETH_KEYSTORE_PATH` / `ETH_PASSWORD_FILE`
   at those mounted paths instead.
@@ -113,9 +119,15 @@ This corresponds to `$0.50/hour` which is what the gateways will pay.
 ## Public Routing
 
 Caddy exposes `https://${DOMAIN}` and forwards traffic to `go-livepeer:8935`.
-Scope registers its live runner internally at `http://scope-live-runner:8989`,
-so go-livepeer can call it over the Docker network without exposing the runner
-directly.
+Scope registers to go-livepeer over the internal Docker network at
+`http://go-livepeer:8935`. go-livepeer keeps its public client-facing
+`serviceAddr` on `https://${DOMAIN}`, but uses
+`liveRunnerAddr=${LIVE_RUNNER_ADDR}` for live-runner heartbeat, trickle, and
+control-plane callbacks. In the default setup this is the internal Docker URL
+`http://go-livepeer:8935`. The runner itself is still reached
+internally at `http://scope-live-runner:8989`. Scope stores persistent shared
+runner data at `/workspace/shared` and session-specific data under
+`/tmp/.daydream-scope/assets`.
 
 ## Updates
 

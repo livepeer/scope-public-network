@@ -34,16 +34,19 @@ services:
       LIVEPEER_RUNNER_PRICE_PER_UNIT: ${PRICE_PER_UNIT:-5}
       LIVEPEER_RUNNER_PIXELS_PER_UNIT: ${PIXELS_PER_UNIT:-995328000000}
       LIVEPEER_RUNNER_PRICE_UNIT: pixels
-      DAYDREAM_SCOPE_MODELS_DIR: /workspace/models
-      DAYDREAM_SCOPE_LOGS_DIR: /workspace/logs
+      DAYDREAM_SCOPE_MODELS_DIR: /workspace/shared/models
+      DAYDREAM_SCOPE_LORA_SHARED_DIR: /workspace/shared/models/lora
+      DAYDREAM_SCOPE_ASSETS_DIR: /tmp/.daydream-scope/assets
+      DAYDREAM_SCOPE_LORA_DIR: /tmp/.daydream-scope/assets/lora
+      DAYDREAM_SCOPE_LOGS_DIR: /tmp/.daydream-scope/assets/logs
+      DAYDREAM_SCOPE_PLUGINS_DIR: /tmp/.daydream-scope/assets/plugins
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
       PYTHONUNBUFFERED: "1"
     expose:
       - "8989"
     volumes:
-      - scope-models:/workspace/models
-      - scope-logs:/workspace/logs
+      - scope-shared-data:/workspace/shared
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
@@ -52,6 +55,7 @@ services:
     restart: unless-stopped
     environment:
       PUBLIC_SERVICE_ADDR: ${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR in .env}
+      LIVE_RUNNER_ADDR: ${LIVE_RUNNER_ADDR:-http://go-livepeer:8935}
       ARBITRUM_RPC_URL: ${ARBITRUM_RPC_URL:?Set ARBITRUM_RPC_URL in .env}
       ETH_ACCT_ADDR: ${ETH_ACCT_ADDR:?Set ETH_ACCT_ADDR in .env}
       ETH_KEYSTORE_PATH: ${ETH_KEYSTORE_PATH:-/root/.lpData/arbitrum-one-mainnet/keystore}
@@ -120,5 +124,4 @@ volumes:
   caddy-config:
   caddy-data:
   livepeer-data:
-  scope-logs:
-  scope-models:
+  scope-shared-data:
