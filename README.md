@@ -129,6 +129,42 @@ internally at `http://scope-live-runner:8989`. Scope stores persistent shared
 runner data at `/workspace/shared` and session-specific data under
 `/tmp/.daydream-scope/assets`.
 
+## Preloading Models
+
+The runner downloads model files on demand, but production hosts may prefer to
+preload the model cache in the persistent `scope-shared-data` volume before
+serving traffic. Run the preload from a runner container after the stack has
+started:
+
+```bash
+docker compose exec -T scope-live-runner \
+  uv run --extra livepeer python - <<'PY'
+import scope.core.pipelines.registry  # noqa: F401 - initializes pipeline registry
+from scope.server.download_models import download_models
+
+pipelines = [
+    "streamdiffusionv2",
+    "longlive",
+    "krea-realtime-video",
+    "reward-forcing",
+    "memflow",
+    "video-depth-anything",
+    "rife",
+    "scribble",
+    "ltx2",
+]
+
+for pipeline in pipelines:
+    print(f"Downloading models for {pipeline}...")
+    download_models(pipeline)
+PY
+```
+
+The zero-weight/lightweight pipelines do not require model files. If you only
+serve one pipeline, you can keep the same wrapper and remove the other entries.
+The explicit registry import is intentional: it ensures the pipeline registry is
+initialized before `download_models()` looks up pipeline artifacts.
+
 ## Multiple Scope Runners And GPU Selection
 
 Scope currently uses a single GPU per live runner instance. On multi-GPU hosts,
