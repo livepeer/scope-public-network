@@ -10,6 +10,8 @@ services:
     command:
       - uv
       - run
+      - --extra
+      - livepeer
       - livepeer-scope
       - --host
       - 0.0.0.0
@@ -55,7 +57,6 @@ services:
     restart: unless-stopped
     environment:
       PUBLIC_SERVICE_ADDR: ${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR in .env}
-      LIVE_RUNNER_ADDR: ${LIVE_RUNNER_ADDR:-http://go-livepeer:8935}
       ARBITRUM_RPC_URL: ${ARBITRUM_RPC_URL:?Set ARBITRUM_RPC_URL in .env}
       ETH_ACCT_ADDR: ${ETH_ACCT_ADDR:?Set ETH_ACCT_ADDR in .env}
       ETH_KEYSTORE_PATH: ${ETH_KEYSTORE_PATH:-/root/.lpData/arbitrum-one-mainnet/keystore}
