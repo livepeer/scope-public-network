@@ -252,9 +252,6 @@ Expected signs of health:
 - go-livepeer starts with `orchestrator true`, `useLiveRunners true`, and
   `network arbitrum-one-mainnet`.
 - Scope logs show live-runner registration against `http://go-livepeer:8935`.
-- The Scope runner can import its live-runner dependencies. A missing
-  `websockets` package usually means the runner command is missing
-  `uv run --extra livepeer`.
 - `https://${DOMAIN}` reaches the go-livepeer service through Caddy.
 - Watchtower logs show only labeled services are monitored.
 
