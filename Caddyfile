@@ -1,4 +1,11 @@
 {$DOMAIN} {
 	encode zstd gzip
-	reverse_proxy go-livepeer:8935
+	reverse_proxy go-livepeer:8935 {
+		lb_try_duration 10s
+		lb_try_interval 250ms
+		transport http {
+			versions h2c
+		}
+		flush_interval -1
+	}
 }

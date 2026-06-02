@@ -6,25 +6,52 @@ services:
     restart: unless-stopped
     gpus: all
     depends_on:
-      - go-livepeer
-    command:
-      - uv
-      - run
-      - livepeer-scope
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8989"
-      - --orchestrator
-      - http://go-livepeer:8935
-      - --orch-secret
-      - ${ORCH_SECRET:?Set ORCH_SECRET in .env}
-      - --runner-url
-      - http://scope-live-runner:8989
-      - --price-per-unit
-      - ${PRICE_PER_UNIT:-5}
-      - --pixels-per-unit
-      - ${PIXELS_PER_UNIT:-995328000000}
+      go-livepeer-healthcheck:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command: |
+      DEFAULT_DOWNLOAD_MODELS="streamdiffusionv2 longlive krea-realtime-video reward-forcing memflow video-depth-anything rife scribble ltx2"
+      DEFAULT_DOWNLOAD_LORAS='--url https://civitai.com/api/download/models/2704300 --filename diffslime_acidzlime-000016.safetensors --expected-sha256 a4028744227d95ca03eb0db1a0906dc34d84356d44ab4778348ceb35661ec94a # diffslime_acidzlime
+      --url https://civitai.com/api/download/models/2680702 --filename daydream-scope-dissolve.safetensors --expected-sha256 fd373e0991a33df28f6d0d4a13d8553e2c9625483e309e8ec952a96a2570bec9 # daydream-scope-dissolve
+      --url https://huggingface.co/daydreamlive/Wan2.1-1.3b-lora-highresfix/resolve/main/Wan2.1-1.3b-lora-highresfix-v1_new.safetensors --filename Wan2.1-1.3b-lora-highresfix-v1_new.safetensors --expected-sha256 bc5f39b3a6e55fcbf4f3c84806cb37b324996adb0d2a6ee9e9b9789e23948515 # Wan2.1 highres fix'
+
+      if [ "$${DOWNLOAD_MODELS}" = "__scope_defaults__" ]; then
+        DOWNLOAD_MODELS="$${DEFAULT_DOWNLOAD_MODELS}"
+      fi
+      if [ "$${DOWNLOAD_LORAS}" = "__scope_defaults__" ]; then
+        DOWNLOAD_LORAS="$${DEFAULT_DOWNLOAD_LORAS}"
+      fi
+
+      mkdir -p "$${DAYDREAM_SCOPE_MODELS_DIR}" "$${DAYDREAM_SCOPE_LORA_SHARED_DIR}"
+
+      for pipeline in $${DOWNLOAD_MODELS}; do
+        [ -n "$${pipeline}" ] || continue
+        echo "Prefetching Scope model artifacts for $${pipeline}"
+        uv run --extra livepeer download_models --pipeline "$${pipeline}"
+      done
+
+      printf '%s\n' "$${DOWNLOAD_LORAS}" | while IFS= read -r args; do
+        case "$${args}" in
+          ""|\#*) continue ;;
+        esac
+        args="$${args%%#*}"
+        set -- $${args}
+        [ "$${#}" -gt 0 ] || continue
+        echo "Prefetching Scope LoRA: $${args}"
+        DAYDREAM_SCOPE_LORA_DIR="$${DAYDREAM_SCOPE_LORA_SHARED_DIR}" \
+          uv run --extra livepeer download_loras "$${@}"
+      done
+
+      exec uv run --extra livepeer livepeer-scope \
+        --host 0.0.0.0 \
+        --port 8989 \
+        --orchestrator http://go-livepeer:8935 \
+        --orch-secret "$${ORCH_SECRET}" \
+        --runner-url http://scope-live-runner:8989 \
+        --price-per-unit "$${PRICE_PER_UNIT:-5}" \
+        --pixels-per-unit "$${PIXELS_PER_UNIT:-995328000000}"
     environment:
       LIVEPEER_ORCH_URL: http://go-livepeer:8935
       LIVEPEER_ORCH_SECRET: ${ORCH_SECRET:?Set ORCH_SECRET in .env}
@@ -40,6 +67,10 @@ services:
       DAYDREAM_SCOPE_LORA_DIR: /tmp/.daydream-scope/assets/lora
       DAYDREAM_SCOPE_LOGS_DIR: /tmp/.daydream-scope/assets/logs
       DAYDREAM_SCOPE_PLUGINS_DIR: /tmp/.daydream-scope/assets/plugins
+      DOWNLOAD_MODELS: ${DOWNLOAD_MODELS-__scope_defaults__}
+      DOWNLOAD_LORAS: ${DOWNLOAD_LORAS-__scope_defaults__}
+      HF_TOKEN: ${HF_TOKEN:-}
+      CIVITAI_API_TOKEN: ${CIVITAI_API_TOKEN:-}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
       PYTHONUNBUFFERED: "1"
@@ -53,6 +84,9 @@ services:
   go-livepeer:
     image: ${GO_LIVEPEER_IMAGE:-livepeer/go-livepeer:ja-live-runner}
     restart: unless-stopped
+    depends_on:
+      caddy:
+        condition: service_started
     environment:
       PUBLIC_SERVICE_ADDR: ${PUBLIC_SERVICE_ADDR:?Set PUBLIC_SERVICE_ADDR in .env}
       LIVE_RUNNER_ADDR: ${LIVE_RUNNER_ADDR:-http://go-livepeer:8935}
@@ -90,11 +124,35 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
+  # Keeps a tiny curl container alive so Docker can healthcheck go-livepeer
+  # without requiring curl or wget inside the go-livepeer image itself.
+  go-livepeer-healthcheck:
+    image: ${CURL_IMAGE:-curlimages/curl:8.11.1}
+    restart: unless-stopped
+    depends_on:
+      go-livepeer:
+        condition: service_started
+    entrypoint:
+      - /bin/sh
+      - -c
+    # Keep the sidecar process alive; Docker runs the healthcheck separately.
+    command: tail -f /dev/null
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://go-livepeer:8935/healthz
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+
   caddy:
     image: ${CADDY_IMAGE:-caddy:2}
     restart: unless-stopped
-    depends_on:
-      - go-livepeer
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
     ports:

@@ -104,6 +104,35 @@ sequenceDiagram
    Docker daemon comes back after a reboot, the stack will come back
    automatically.
 
+
+## Scope Artifact Prefetch
+
+The `scope-live-runner` service prefetches Scope model artifacts and promoted
+starter LoRAs before it registers with go-livepeer. This keeps the first live
+session from paying the download cost. Prefetched files are stored in the
+persistent `scope-shared-data` volume under `/workspace/shared/models`, including
+shared LoRAs under `/workspace/shared/models/lora`, so container restarts and
+Watchtower image replacements reuse the cached artifacts.
+
+Use `DOWNLOAD_MODELS` to override the default space-separated pipeline list. Use
+`DOWNLOAD_LORAS` to override the default line-oriented LoRA list; each non-empty
+line is passed as arguments to `uv run download_loras`, so include `--url`, `--filename`, and,
+when available, `--expected-sha256`. Text after `#` is treated as a human label.
+Set either variable to an empty value to skip that prefetch category.
+
+For example:
+
+```env
+DOWNLOAD_MODELS=longlive rife
+DOWNLOAD_LORAS='--url https://civitai.com/api/download/models/2680702 --filename daydream-scope-dissolve.safetensors --expected-sha256 fd373e0991a33df28f6d0d4a13d8553e2c9625483e309e8ec952a96a2570bec9 # daydream-scope-dissolve'
+```
+
+Populate `HF_TOKEN` and `CIVITAI_API_TOKEN` in `.env` when possible. The runner
+uses these during artifact downloads, which reduces the chance of Hugging Face or
+CivitAI rate-limit and authentication failures. For Hugging Face LoRA URLs, use
+raw download URLs such as `/resolve/main/...`; web UI URLs with `/blob/main/...`
+are file preview pages and are not suitable for `download_loras`.
+
 ## Pricing
 
 Both the Scope live runner and go-livepeer are configured with:
@@ -128,6 +157,20 @@ control-plane callbacks. In the default setup this is the internal Docker URL
 internally at `http://scope-live-runner:8989`. Scope stores persistent shared
 runner data at `/workspace/shared` and session-specific data under
 `/tmp/.daydream-scope/assets`.
+
+## Shared-Host Deployments
+
+Caddy is included as a convenience for public TLS and certificate renewal, but
+it is not required. If the host already has nginx, Traefik, HAProxy, Caddy, a
+cloud load balancer, or another reverse proxy using ports `80` and `443`, you
+can disable or remove the bundled Caddy service and route traffic through the
+existing ingress layer instead.
+
+The replacement proxy must provide valid public HTTPS for
+`PUBLIC_SERVICE_ADDR`, keep certificates renewed, and forward traffic to
+`go-livepeer:8935`. It also needs to support HTTP/2 or gRPC-style traffic to
+the upstream service and avoid buffering behavior that adds latency to live
+sessions.
 
 ## Multiple Scope Runners And GPU Selection
 
