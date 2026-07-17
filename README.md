@@ -135,7 +135,13 @@ are file preview pages and are not suitable for `download_loras`.
 
 ## Pricing
 
-Both the Scope live runner and go-livepeer are configured with:
+The Scope live runner registers with `SCOPE_RUNNER_PRICE` as its USD per 720p-hour price:
+
+```env
+SCOPE_RUNNER_PRICE=0.5
+```
+
+go-livepeer is configured separately with:
 
 ```env
 TICKET_EV=800000000000

@@ -50,17 +50,14 @@ services:
         --orchestrator http://go-livepeer:8935 \
         --orch-secret "$${ORCH_SECRET}" \
         --runner-url http://scope-live-runner:8989 \
-        --price-per-unit "$${PRICE_PER_UNIT:-5}" \
-        --pixels-per-unit "$${PIXELS_PER_UNIT:-995328000000}"
+        --price-per-unit "$${SCOPE_RUNNER_PRICE:-0.5}"
     environment:
       LIVEPEER_ORCH_URL: http://go-livepeer:8935
       LIVEPEER_ORCH_SECRET: ${ORCH_SECRET:?Set ORCH_SECRET in .env}
       LIVEPEER_RUNNER_HOST: 0.0.0.0
       LIVEPEER_RUNNER_PORT: "8989"
       LIVEPEER_RUNNER_URL: http://scope-live-runner:8989
-      LIVEPEER_RUNNER_PRICE_PER_UNIT: ${PRICE_PER_UNIT:-5}
-      LIVEPEER_RUNNER_PIXELS_PER_UNIT: ${PIXELS_PER_UNIT:-995328000000}
-      LIVEPEER_RUNNER_PRICE_UNIT: pixels
+      LIVEPEER_RUNNER_PRICE_PER_UNIT: ${SCOPE_RUNNER_PRICE:-0.5}
       DAYDREAM_SCOPE_MODELS_DIR: /workspace/shared/models
       DAYDREAM_SCOPE_LORA_SHARED_DIR: /workspace/shared/models/lora
       DAYDREAM_SCOPE_ASSETS_DIR: /tmp/.daydream-scope/assets
