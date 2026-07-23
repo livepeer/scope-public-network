@@ -28,6 +28,15 @@ sequenceDiagram
     Orchestrator-->>Client: Live session output
 ```
 
+## For Agents (Claude / Codex)
+
+If you are an AI agent deploying or validating this stack, read
+`skills/deploying-scope-public-orchestrator/SKILL.md`. It encodes the deploy
+steps plus an ordered, runnable validation that proves the orchestrator is
+*actually* serving video — not just registered and discoverable. A Scope runner
+can register, advertise capacity, and bill while producing zero frames, so the
+skill calls out those false-green signals and the common failure modes.
+
 ## Files
 
 - `docker-compose.yml` runs Scope, go-livepeer, Caddy, and Watchtower.
